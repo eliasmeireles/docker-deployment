@@ -9,7 +9,7 @@ multipass launch -n docker-connector -c 2 -d 10G -m 2G
 
 # Run Docker remote access configuration script on docker-server
 echo "Copying Docker remote access script to docker-server..."
-multipass copy-files docker-remote docker-server:/home/ubuntu/docker-remote
+multipass copy-files ../docker-remote docker-server:/home/ubuntu/docker-remote
 
 echo "Running Docker remote access script on docker-server..."
 multipass exec docker-server -- sudo bash /home/ubuntu/docker-remote
@@ -47,18 +47,10 @@ multipass exec docker-connector -- sudo bash -c "
 "
 
 # Extract Docker binary on docker-connector
-echo "Extracting Docker binary on docker-connector..."
-multipass exec docker-connector -- bash -c "
-    sudo tar -xvf /home/ubuntu/docker-27.0.3.tgz -C /home/ubuntu/ && \
-    sudo cp /home/ubuntu/docker/* /usr/bin/ && \
-    sudo chmod +x /usr/bin/docker && \
-    DOCKER_CONFIG=\${DOCKER_CONFIG:-\$HOME/.docker}
-    sudo mkdir -p \"\$DOCKER_CONFIG\"/cli-plugins
-    sudo curl -SL \"https://github.com/docker/compose/releases/download/v2.9.0/docker-compose-\$(uname -s)-\$(uname -m)\" -o \"\$DOCKER_CONFIG\"/cli-plugins/docker-compose
-    sudo curl -L \"https://github.com/docker/compose/releases/download/v2.9.0/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-    sudo rm -rf /home/ubuntu/docker
-"
+multipass transfer setup docker-connector:/home/ubuntu/
+multipass transfer docker-compose.yml docker-connector:/home/ubuntu/docker-compose.yml
+multipass transfer Makefile docker-connector:/home/ubuntu/Makefile
+multipass exec docker-connector -- bash /home/ubuntu/setup
 
 # Create Docker environment configuration file on docker-connector
 echo "Creating Docker environment configuration file on docker-connector..."
@@ -86,4 +78,8 @@ echo "Setup complete!"
 multipass list | grep docker
 
 # Open a shell on docker-connector
+echo "Try run
+  sudo su
+  make deploy
+"
 multipass exec docker-connector bash
