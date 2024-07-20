@@ -52,6 +52,11 @@ multipass exec docker-connector -- bash -c "
     sudo tar -xvf /home/ubuntu/docker-27.0.3.tgz -C /home/ubuntu/ && \
     sudo cp /home/ubuntu/docker/* /usr/bin/ && \
     sudo chmod +x /usr/bin/docker && \
+    DOCKER_CONFIG=\${DOCKER_CONFIG:-\$HOME/.docker}
+    sudo mkdir -p \"\$DOCKER_CONFIG\"/cli-plugins
+    sudo curl -SL \"https://github.com/docker/compose/releases/download/v2.9.0/docker-compose-\$(uname -s)-\$(uname -m)\" -o \"\$DOCKER_CONFIG\"/cli-plugins/docker-compose
+    sudo curl -L \"https://github.com/docker/compose/releases/download/v2.9.0/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
     sudo rm -rf /home/ubuntu/docker
 "
 

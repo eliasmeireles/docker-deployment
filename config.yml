@@ -1,0 +1,28 @@
+docker:
+  host: "tcp://10.85.62.58:2376"
+  tls:
+    ca: "/etc/docker/certs.d/ca.pem"
+    cert: "/etc/docker/certs.d/cert.pem"
+    key: "/etc/docker/certs.d/key.pem"
+
+container:
+  name: "web-app"
+  image: "nginx"
+  version: "latest"
+  startup:
+    timeout: 10
+  force: true
+  env:
+    EXECUTION_MODE: "dev"
+    SOURCE_MODE: "local"
+  volumes:
+    - "/opt:/opt"
+  ports:
+    - "0.0.0.0:80:80"
+    - "0.0.0.0:88:8080"
+  healthcheck:
+    test: [ "CMD", "curl", "-f", "http://localhost/" ]
+    interval: 5
+    timeout: 3
+    retries: 3
+    start_period: 10

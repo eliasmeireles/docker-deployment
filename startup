@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Check if DOCKER_COMPOSE_FILE is set
+if [ -z "$DOCKER_COMPOSE_FILE" ]; then
+    echo "Error: DOCKER_COMPOSE_FILE environment variable is not set."
+    exit 1
+fi
+
+docker --version
+docker-compose --version
+
+echo "Starting docker-compose with file: $DOCKER_COMPOSE_FILE"
+timeout $TIME_OUT docker-compose -f "$DOCKER_COMPOSE_FILE" up -d

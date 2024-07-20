@@ -1,17 +1,13 @@
 package main
 
 import (
+	"docker-deployment/src/container"
+	"docker-deployment/src/docker"
+	"docker-deployment/src/model"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
-
-	"docker-deployment/container"
-	"docker-deployment/docker"
-	"docker-deployment/model"
-
-	"gopkg.in/yaml.v2"
 )
 
 func readConfig(filename string) (model.Config, error) {
@@ -75,10 +71,4 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error running container: %v", err)
 	}
-
-	// Handle graceful shutdown
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
-	log.Println("Shutting down...")
 }
