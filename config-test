@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Delete and purge any existing instances
+multipass delete docker-server docker-connector && multipass purge
+
+# Create instances
+multipass launch -n docker-server -c 2 -d 10G -m 2G
+multipass launch -n docker-connector -c 2 -d 10G -m 2G
+
+# Run Docker remote access configuration script on docker-server
+echo "Copying Docker remote access script to docker-server..."
+multipass copy-files docker-remote docker-server:/home/ubuntu/docker-remote
+
+echo "Running Docker remote access script on docker-server..."
+multipass exec docker-server -- sudo bash /home/ubuntu/docker-remote
+
+# Get IP address of docker-server
+DOCKER_SERVER_IP=$(multipass info docker-server | grep "IPv4" | awk '{print $2}')
+
+# Install wget on docker-connector
+echo "Installing wget on docker-connector..."
+multipass exec docker-connector -- sudo apt-get update
+multipass exec docker-connector -- sudo apt-get install -y wget
+
+# Download Docker binary on docker-connector
+echo "Downloading Docker binary on docker-connector..."
+multipass exec docker-connector -- wget https://download.docker.com/linux/static/stable/x86_64/docker-27.0.3.tgz -P /home/ubuntu/
+
+# Create a local temporary directory
+TEMP_DIR="./.temp"
+mkdir -p "$TEMP_DIR"
+
+# Copy Docker certificates from docker-server to local temporary directory
+echo "Copying Docker certificates from docker-server to local temporary directory..."
+multipass exec docker-server -- sudo tar -czf - -C /etc/docker/certs.d ca.pem cert.pem key.pem ca-key.pem | tar -xzf - -C "$TEMP_DIR"
+
+# Copy Docker certificates from local temporary directory to docker-connector
+echo "Copying Docker certificates to docker-connector..."
+multipass copy-files -r "$TEMP_DIR" docker-connector:/home/ubuntu/certs.d
+
+# Move Docker certificates to the correct directory on docker-connector
+echo "Moving Docker certificates to /etc/docker/certs.d on docker-connector..."
+multipass exec docker-connector -- sudo bash -c "
+    sudo mkdir -p /etc/docker/certs.d && \
+    sudo mv /home/ubuntu/certs.d/* /etc/docker/certs.d/ && \
+    sudo rm -rf /home/ubuntu/certs.d
+"
+
+# Extract Docker binary on docker-connector
+echo "Extracting Docker binary on docker-connector..."
+multipass exec docker-connector -- bash -c "
+    sudo tar -xvf /home/ubuntu/docker-27.0.3.tgz -C /home/ubuntu/ && \
+    sudo cp /home/ubuntu/docker/* /usr/bin/ && \
+    sudo chmod +x /usr/bin/docker && \
+    sudo rm -rf /home/ubuntu/docker
+"
+
+# Create Docker environment configuration file on docker-connector
+echo "Creating Docker environment configuration file on docker-connector..."
+multipass exec docker-connector -- bash -c "
+    echo 'export DOCKER_HOST=tcp://docker-server:2376' | sudo tee -a /home/ubuntu/.bashrc
+    echo 'export DOCKER_TLS_VERIFY=1' | sudo tee -a /home/ubuntu/.bashrc
+    echo 'export DOCKER_CERT_PATH=/etc/docker/certs.d' | sudo tee -a /home/ubuntu/.bashrc
+    source /home/ubuntu/.bashrc
+"
+
+# Update /etc/hosts on docker-connector to include docker-server IP
+echo "Updating /etc/hosts on docker-connector..."
+multipass exec docker-connector -- bash -c "
+    echo '$DOCKER_SERVER_IP docker-server' | sudo tee -a /etc/hosts
+"
+
+# Cleanup
+echo "Cleaning up temporary files..."
+multipass exec docker-connector -- rm /home/ubuntu/docker-27.0.3.tgz
+rm -rf "$TEMP_DIR"
+
+echo "Setup complete!"
+
+# List instances
+multipass list | grep docker
+
+# Open a shell on docker-connector
+multipass exec docker-connector bash

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+echo "Installing Docker on $(hostname)..."
+
+sudo apt-get update && sudo apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    net-tools
+
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Paths to TLS certificates and key
+CERT_DIR="/etc/docker/certs.d"
+SERVER_CERT="${CERT_DIR}/cert.pem"
+SERVER_KEY="${CERT_DIR}/key.pem"
+CA_CERT="${CERT_DIR}/ca.pem"
+CA_KEY="${CERT_DIR}/ca-key.pem"
+
+# Create the certificates directory if it doesn't exist
+sudo mkdir -p "${CERT_DIR}"
+
+# Generate certificates and keys
+echo "Generating certificates and keys..."
+
+# Generate the CA certificate and key if they don't exist
+if [ ! -f "${CA_CERT}" ] || [ ! -f "${CA_KEY}" ]; then
+    echo 'Generating CA certificate and key...'
+    sudo openssl genrsa -out "${CA_KEY}" 4096
+    sudo openssl req -x509 -new -nodes -key "${CA_KEY}" -sha256 -days 3650 -out "${CA_CERT}" -subj '/CN=docker-server'
+fi
+
+# Generate the server certificate and key if they don't exist
+if [ ! -f "${SERVER_CERT}" ] || [ ! -f "${SERVER_KEY}" ]; then
+    echo 'Generating server certificate and key...'
+    sudo openssl genrsa -out "${SERVER_KEY}" 4096
+    sudo openssl req -new -key "${SERVER_KEY}" -out "${CERT_DIR}/server.csr" -subj '/CN=docker-server'
+    sudo openssl x509 -req -in "${CERT_DIR}/server.csr" -CA "${CA_CERT}" -CAkey "${CA_KEY}" -CAcreateserial -out "${SERVER_CERT}" -days 3650 -sha256
+    sudo rm "${CERT_DIR}/server.csr"
+fi
+
+# Configure Docker on docker-server
+echo "Configuring Docker on docker-server..."
+
+# Create Docker daemon configuration file
+echo '{
+  "hosts": ["tcp://0.0.0.0:2376", "unix:///var/run/docker.sock"],
+  "tlsverify": true,
+  "tlscacert": "/etc/docker/certs.d/ca.pem",
+  "tlscert": "/etc/docker/certs.d/cert.pem",
+  "tlskey": "/etc/docker/certs.d/key.pem"
+}' | sudo tee /etc/docker/daemon.json
+
+# Modify the Docker service file to use TLS
+sudo sed -i 's|-H fd://||' /lib/systemd/system/docker.service
+sudo sed -i 's|-H unix:///var/run/docker.sock|-H unix:///var/run/docker.sock -H tcp://0.0.0.0:2376 --tlsverify --tlscacert=/etc/docker/certs.d/ca.pem --tlscert=/etc/docker/certs.d/cert.pem --tlskey=/etc/docker/certs.d/key.pem|' /lib/systemd/system/docker.service
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+echo "Docker installation and configuration complete."
