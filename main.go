@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -228,26 +227,29 @@ func getShortId(containerID string) string {
 
 func validateHealthCheck(ctx context.Context, containers map[string]string) error {
 	for name, containerID := range containers {
-		return validatePodsStatus(ctx, name, containerID)
+		err := validatePodsStatus(ctx, name, containerID)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func validatePodsStatus(ctx context.Context, name string, containerID string) error {
-
 	shortContainerID := getShortId(containerID)
 
 	// Check if the container has a health check defined
-
-	time.Sleep(2 * time.Second)
-
-	healthCheckCmd := exec.Command("docker", "inspect", "--format={{.Config.Healthcheck}}", containerID)
+	healthCheckCmd := exec.Command("docker", "inspect", "--format={{.State.Health.Status}}", containerID)
 	var healthCheckOut bytes.Buffer
 	healthCheckCmd.Stdout = &healthCheckOut
 	healthCheckCmd.Stderr = os.Stderr
 
+	if err := healthCheckCmd.Run(); err != nil {
+		return fmt.Errorf("error checking health status for container %s (%s): %s", name, shortContainerID, err)
+	}
+
 	healthCheckConfig := strings.TrimSpace(healthCheckOut.String())
-	if healthCheckConfig == "map[]" || healthCheckConfig == "" {
+	if healthCheckConfig == "" || healthCheckConfig == "<no value>" {
 		// Health check not provided, check if container is running
 		return checkPosIsRunning(ctx, name, shortContainerID, containerID)
 	} else {
@@ -262,79 +264,72 @@ func checkPosIsHealthy(checkCtx context.Context, name string, containerID string
 	defer cancel()
 
 	fmt.Printf(colorBlue+"Checking is healthy for container %s (%s)..."+colorReset+"\n", name, shortContainerID)
-	select {
-	case <-ctx.Done():
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			fmt.Printf(colorRed+"Health check for container %s (%s) timed out."+colorReset+"\n", name, shortContainerID)
-		} else {
-			fmt.Printf(colorRed+"Health check for container %s (%s) failed: %s"+colorReset+"\n", name, shortContainerID, ctx.Err())
-		}
-		return ctx.Err()
-	default:
-		cmd := exec.Command("docker", "inspect", "--format={{.State.Health.Status}}", containerID)
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = os.Stderr
-
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf(colorRed+"Error checking health for container %s (%s): %s"+colorReset, name, shortContainerID, err)
-		}
-
-		healthStatus := strings.TrimSpace(out.String())
-		if healthStatus == "healthy" {
-			fmt.Printf(colorGreen+"Container %s (%s) is healthy."+colorReset+"\n", name, shortContainerID)
-			return nil
-		}
-
-		if healthStatus == "unhealthy" || healthStatus == "starting" {
-			fmt.Printf(colorRed+"Container %s (%s) is unhealthy."+colorReset+"\n", name, shortContainerID)
-			time.Sleep(10 * time.Second)
-			return checkPosIsHealthy(ctx, name, containerID, shortContainerID)
-		}
-
-		fmt.Printf(colorRed+"Container %s (%s) has unknown health status: %s."+colorReset+"\n", name, shortContainerID, healthStatus)
-		return fmt.Errorf(colorRed+"Container %s (%s) has unknown health status: %s."+colorReset, name, shortContainerID, healthStatus)
-	}
-}
-
-func checkPosIsRunning(ctx context.Context, name string, shortContainerID string, containerID string) error {
-	// Context with timeout for each health check operation
-	checkCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
-	defer cancel()
-
-	fmt.Printf(colorBlue+"Checking is running for container %s (%s)..."+colorReset+"\n", name, shortContainerID)
 	for {
 		select {
-		case <-checkCtx.Done():
-			if errors.Is(checkCtx.Err(), context.DeadlineExceeded) {
-				fmt.Printf(colorRed+"Health check for container %s (%s) timed out."+colorReset+"\n", name, shortContainerID)
-			} else {
-				fmt.Printf(colorRed+"Health check for container %s (%s) failed: %s"+colorReset+"\n", name, shortContainerID, checkCtx.Err())
-			}
-			return checkCtx.Err()
+		case <-ctx.Done():
+			return fmt.Errorf("timeout while waiting for container %s (%s) to become healthy", name, shortContainerID)
 		default:
-			cmd := exec.Command("docker", "inspect", "--format={{.State.Running}}", containerID)
+			cmd := exec.Command("docker", "inspect", "--format={{.State.Health.Status}}", containerID)
 			var out bytes.Buffer
 			cmd.Stdout = &out
 			cmd.Stderr = os.Stderr
+
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf(colorRed+"Error checking running status for container %s (%s): %s"+colorReset, name, shortContainerID, err)
+				return fmt.Errorf("error inspecting container %s (%s): %s", name, shortContainerID, err)
 			}
 
-			runningStatus := strings.TrimSpace(out.String())
-			if runningStatus == "true" {
+			healthStatus := strings.TrimSpace(out.String())
+			fmt.Printf(colorYellow+"Container %s (%s) health status: %s"+colorReset+"\n", name, shortContainerID, healthStatus)
+
+			switch healthStatus {
+			case "healthy":
+				fmt.Printf(colorGreen+"Container %s (%s) is healthy."+colorReset+"\n", name, shortContainerID)
+				return nil
+			case "unhealthy":
+				return fmt.Errorf("container %s (%s) is unhealthy", name, shortContainerID)
+			case "starting":
+				// Continue the loop to keep checking
+			default:
+				return fmt.Errorf("unknown health status for container %s (%s): %s", name, shortContainerID, healthStatus)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}
+}
+
+func checkPosIsRunning(checkCtx context.Context, name string, shortContainerID string, containerID string) error {
+	// Context with timeout for each status check operation
+	ctx, cancel := context.WithTimeout(checkCtx, defaultTimeout)
+	defer cancel()
+
+	fmt.Printf(colorBlue+"Checking running status for container %s (%s)..."+colorReset+"\n", name, shortContainerID)
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout while waiting for container %s (%s) to become running", name, shortContainerID)
+		default:
+			cmd := exec.Command("docker", "inspect", "--format={{.State.Status}}", containerID)
+			var out bytes.Buffer
+			cmd.Stdout = &out
+			cmd.Stderr = os.Stderr
+
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("error inspecting container %s (%s): %s", name, shortContainerID, err)
+			}
+
+			status := strings.TrimSpace(out.String())
+			fmt.Printf(colorYellow+"Container %s (%s) status: %s"+colorReset+"\n", name, shortContainerID, status)
+
+			switch status {
+			case "running":
 				fmt.Printf(colorGreen+"Container %s (%s) is running."+colorReset+"\n", name, shortContainerID)
 				return nil
+			case "created", "restarting":
+				// Continue the loop to keep checking
+			default:
+				return fmt.Errorf("unknown status for container %s (%s): %s", name, shortContainerID, status)
 			}
-
-			if runningStatus == "starting" {
-				fmt.Printf(colorYellow+"Container %s (%s) is starting, retrying."+colorReset+"\n", name, shortContainerID)
-				time.Sleep(10 * time.Second)
-				return checkPosIsRunning(checkCtx, name, shortContainerID, containerID)
-			}
-
-			fmt.Printf(colorRed+"Container %s (%s) is not running. Current status %s."+colorReset+"\n", name, shortContainerID, runningStatus)
-			return fmt.Errorf(colorRed+"Container %s (%s) is not running. Current status %s."+colorReset, name, shortContainerID, runningStatus)
+			time.Sleep(2 * time.Second)
 		}
 	}
 }
@@ -346,7 +341,6 @@ func getPodLogs(containers map[string]string) error {
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = os.Stderr
-
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf(colorRed+"Error retrieving logs for container %s (%s): %s"+colorReset, name, shortContainerID, err)
 		}
