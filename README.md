@@ -32,8 +32,12 @@ docker run --rm -it --name docker-deployment \
         -e FORCE=true \
         -v path/tls/files:/etc/docker/certs.d \
         -v ./docker-compose.yml:/opt/docker-compose.yml \
-        docker-deployment
+        eliasmeireles:docker-deployment
 ```
+
+- Log output
+
+![log.png](doc/log.png)
 
 You can also try the [example](example/README.md).
 
