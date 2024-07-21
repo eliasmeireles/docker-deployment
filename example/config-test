@@ -79,7 +79,6 @@ multipass list | grep docker
 
 # Open a shell on docker-connector
 echo "Try run
-  sudo su
   make deploy
 "
 multipass exec docker-connector bash
