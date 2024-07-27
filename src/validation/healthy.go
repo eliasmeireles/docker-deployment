@@ -12,6 +12,7 @@ import (
 )
 
 func ValidateHealthCheck(ctx context.Context, timeout time.Duration, containers map[string]string) error {
+	time.Sleep(10 * time.Second)
 	for name, containerID := range containers {
 		err := validatePodsStatus(ctx, timeout, name, containerID)
 		if err != nil {
@@ -81,7 +82,7 @@ func checkPosIsHealthy(checkCtx context.Context, name string, containerID string
 			default:
 				return fmt.Errorf("unknown health status for container %s (%s): %s", name, shortContainerID, healthStatus)
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}
 }
@@ -119,7 +120,7 @@ func checkPosIsRunning(checkCtx context.Context, timeout time.Duration, name str
 			default:
 				return fmt.Errorf("unknown status for container %s (%s): %s", name, shortContainerID, status)
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}
 }
