@@ -111,7 +111,7 @@ encryptCerts() {
 }
 
 # Ask if the user wants to zip and encrypt the generated certificates
-read -p "Do you want to zip and encrypt the generated certificates? (y/n): " cerst_entry
+read -p "Do you want generated or replace current certs? (y/n): " cerst_entry
 if [[ "$cerst_entry" == "y" || "$cerst_entry" == "Y" ]]; then
    generateCerts
    else
