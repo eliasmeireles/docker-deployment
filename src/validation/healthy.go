@@ -40,7 +40,7 @@ func validatePodsStatus(ctx context.Context, timeout time.Duration, name string,
 	healthCheckConfig := strings.TrimSpace(healthCheckOut.String())
 	if healthCheckConfig == "" || healthCheckConfig == "<no value>" {
 		// Health check not provided, check if container is running
-		return checkPosIsRunning(ctx, 0, name, shortContainerID, containerID)
+		return checkPosIsRunning(ctx, timeout, name, shortContainerID, containerID)
 	} else {
 		// Health check is provided, validate health status
 		return checkPosIsHealthy(ctx, name, containerID, shortContainerID)

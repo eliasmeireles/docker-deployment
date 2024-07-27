@@ -53,12 +53,12 @@ There is shell script that can help you to configure the docker remote server.
 
 ### Environment Variables
 
-| Environment Variable  | Description                                                           | Required | Default Value   |
-|-----------------------|-----------------------------------------------------------------------|----------|-----------------|
-| `DOCKER_COMPOSE_FILE` | Path to the Docker Compose file.                                      | Yes      | N/A             |
-| `TIMEOUT`             | Timeout duration for health checks (in seconds).                      | No       | `60` (1 minute) |
-| `DOCKER_SERVER_IP`    | IP address of the Docker server. If provide, add it to the /etc/hosts | No       | N/A             |
-| `FORCE`               | If set, forces container recreation.                                  | No       | `false`         |
+| Environment Variable  | Description                                                           | Required | Default Value     |
+|-----------------------|-----------------------------------------------------------------------|----------|-------------------|
+| `DOCKER_COMPOSE_FILE` | Path to the Docker Compose file.                                      | Yes      | N/A               |
+| `TIMEOUT`             | Timeout duration for health checks (in seconds).                      | No       | `300` (5 minutes) |
+| `DOCKER_SERVER_IP`    | IP address of the Docker server. If provide, add it to the /etc/hosts | No       | N/A               |
+| `FORCE`               | If set, forces container recreation.                                  | No       | `false`           |
 
 ### Running the Script
 

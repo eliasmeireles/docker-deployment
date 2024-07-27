@@ -21,9 +21,9 @@ func Start(timeoutStr string, dockerComposeFile string, force bool) {
 		timeoutSeconds, err := parseTimeoutToSeconds(timeoutStr)
 		if err != nil {
 			fmt.Printf(utils.ColorRed+"Invalid TIMEOUT format: %s"+utils.ColorReset+"\n", err)
-			timeout = time.Duration(65) * time.Second
+			timeout = time.Duration(3000) * time.Second
 		} else {
-			timeout = time.Duration(timeoutSeconds+5) * time.Second
+			timeout = time.Duration(timeoutSeconds+60) * time.Second
 		}
 	}
 
