@@ -68,35 +68,41 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 
 	// Channels for health check and logs
 	healthCheckDone := make(chan error, 1)
-	logsDone := make(chan error, 1)
+	logsDone := make(chan struct{})
 
 	// Run health check in a goroutine
 	go func() {
-		healthCheckDone <- validation.ValidateHealthCheck(ctx, containerMap)
+		healthCheckDone <- validation.ValidateHealthCheck(ctx, timeout, containerMap)
 	}()
 
 	// Run logs retrieval in a goroutine
 	go func() {
-		logsDone <- logger.GetPodLogs(containerMap)
+		err := logger.GetPodLogs(ctx, dockerComposeFile)
+		if err != nil {
+			fmt.Printf(utils.ColorRed+"Logs retrieval error: %s"+utils.ColorReset+"\n", err)
+		}
+		close(logsDone)
 	}()
 
-	// Wait for both goroutines to complete
-	healthCheckErr := <-healthCheckDone
-	logsErr := <-logsDone
+	// Wait for either health check or logs retrieval to complete
+	select {
+	case <-logsDone:
+		// Logs retrieval completed
+		// No need to do anything, health check might still be running
+		cancel()          // Cancel health check
+		<-healthCheckDone // Ensure health check completes
 
-	// Check for errors from health check
-	if healthCheckErr != nil {
-		fmt.Printf(utils.ColorRed+"Health check error: %s"+utils.ColorReset+"\n", healthCheckErr)
-		os.Exit(1)
+	case err := <-healthCheckDone:
+		// Health check completed
+		if err != nil {
+			fmt.Printf(utils.ColorRed+"Health check error: %s"+utils.ColorReset+"\n", err)
+			cancel()   // Cancel logs retrieval
+			<-logsDone // Ensure logs retrieval completes
+			os.Exit(1)
+		}
+
 	}
-
-	// Check for errors from logs retrieval
-	if logsErr != nil {
-		fmt.Printf(utils.ColorRed+"Logs retrieval error: %s"+utils.ColorReset+"\n", logsErr)
-		os.Exit(1)
-	}
-
-	fmt.Println(utils.ColorGreen + "Deploy completed successfully" + utils.ColorReset)
+	fmt.Printf(utils.ColorGreen+"Deploy for %s completed successfully\n"+utils.ColorReset, dockerComposeFile)
 }
 
 func removeOldContainer(output string) {

@@ -11,9 +11,9 @@ import (
 	"time"
 )
 
-func ValidateHealthCheck(ctx context.Context, containers map[string]string) error {
+func ValidateHealthCheck(ctx context.Context, timeout time.Duration, containers map[string]string) error {
 	for name, containerID := range containers {
-		err := validatePodsStatus(ctx, name, containerID)
+		err := validatePodsStatus(ctx, timeout, name, containerID)
 		if err != nil {
 			return err
 		}
@@ -21,7 +21,7 @@ func ValidateHealthCheck(ctx context.Context, containers map[string]string) erro
 	return nil
 }
 
-func validatePodsStatus(ctx context.Context, name string, containerID string) error {
+func validatePodsStatus(ctx context.Context, timeout time.Duration, name string, containerID string) error {
 	shortContainerID := utils.GetShortId(containerID)
 
 	// Check if the container has a health check defined
@@ -34,13 +34,13 @@ func validatePodsStatus(ctx context.Context, name string, containerID string) er
 		fmt.Printf(utils.ColorRed+"Error checking health status for container %s (%s)\n"+utils.ColorReset, name, shortContainerID)
 		fmt.Printf(utils.ColorYellow + "Note: It is always a good idea to use container health check " +
 			"configuration to monitor container health properly. See more in: https://docs.docker.com/reference/dockerfile/#healthcheck" + utils.ColorReset + "\n")
-		return checkPosIsRunning(ctx, name, shortContainerID, containerID)
+		return checkPosIsRunning(ctx, timeout, name, shortContainerID, containerID)
 	}
 
 	healthCheckConfig := strings.TrimSpace(healthCheckOut.String())
 	if healthCheckConfig == "" || healthCheckConfig == "<no value>" {
 		// Health check not provided, check if container is running
-		return checkPosIsRunning(ctx, name, shortContainerID, containerID)
+		return checkPosIsRunning(ctx, 0, name, shortContainerID, containerID)
 	} else {
 		// Health check is provided, validate health status
 		return checkPosIsHealthy(ctx, name, containerID, shortContainerID)
@@ -86,7 +86,7 @@ func checkPosIsHealthy(checkCtx context.Context, name string, containerID string
 	}
 }
 
-func checkPosIsRunning(checkCtx context.Context, name string, shortContainerID string, containerID string) error {
+func checkPosIsRunning(checkCtx context.Context, timeout time.Duration, name string, shortContainerID string, containerID string) error {
 	// Context with timeout for each status check operation
 	ctx, cancel := context.WithTimeout(checkCtx, utils.DefaultTimeout)
 	defer cancel()
@@ -111,6 +111,7 @@ func checkPosIsRunning(checkCtx context.Context, name string, shortContainerID s
 
 			switch status {
 			case "running":
+				time.Sleep(timeout)
 				fmt.Printf(utils.ColorGreen+"Container %s (%s) is running."+utils.ColorReset+"\n", name, shortContainerID)
 				return nil
 			case "created", "restarting":
