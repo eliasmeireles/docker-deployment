@@ -8,11 +8,14 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY main.go .
+COPY src ./src/
+
+RUN ls -lah .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o deployment
 
 # Use the official Ubuntu image
-FROM ubuntu:24.04
+FROM eliasmeireles/dev-tools:v1
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/deployment /usr/bin/deployment
@@ -44,6 +47,8 @@ RUN curl -SL "https://github.com/docker/compose/releases/download/v2.9.0/docker-
 # Create the directory for Docker certificates
 RUN mkdir -p /etc/docker/certs.d
 
+COPY entrypoint /usr/bin/entrypoint
+
 # Set Docker environment variables
 ENV DOCKER_COMPOSE_FILE=$DOCKER_COMPOSE_FILE
 ENV DOCKER_SERVER_IP=$DOCKER_SERVER_IP
@@ -55,4 +60,4 @@ ENV DOCKER_CERT_PATH=/etc/docker/certs.d
 SHELL ["/bin/bash", "-c"]
 
 # Entry point for the container
-ENTRYPOINT ["/usr/bin/deployment"]
+ENTRYPOINT ["/usr/bin/entrypoint"]

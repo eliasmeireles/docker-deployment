@@ -32,7 +32,7 @@ docker run --rm -it --name docker-deployment \
         -e FORCE=true \
         -v path/tls/files:/etc/docker/certs.d \
         -v ./docker-compose.yml:/opt/docker-compose.yml \
-        eliasmeireles:docker-deployment
+        eliasmeireles/docker-deployment
 ```
 
 - Log output
