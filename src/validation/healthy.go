@@ -71,7 +71,7 @@ func checkPosIsHealthy(checkCtx context.Context, name string, containerID string
 
 			switch healthStatus {
 			case "healthy":
-				utils.Logger(utils.ColorGreen+"Container %s (%s) is healthy.", name, shortContainerID)
+				utils.Logger(utils.ColorGreen, "Container %s (%s) is healthy.", name, shortContainerID)
 				return nil
 			case "unhealthy":
 				return fmt.Errorf("container %s (%s) is unhealthy", name, shortContainerID)

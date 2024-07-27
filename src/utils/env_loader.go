@@ -12,7 +12,6 @@ func EnvLoader(dockerComposeFile string, dockerServerIP string) {
 	}
 
 	if dockerServerIP == "" {
-		Logger(ColorBlue, "Error: DOCKER_SERVER_IP environment variable is not set.")
 		displayUsage(false)
 	}
 }
@@ -21,7 +20,7 @@ func EnvLoader(dockerComposeFile string, dockerServerIP string) {
 func displayUsage(required bool) {
 	Logger(ColorBlue, "Usage: Set the following environment variables:")
 	Logger(ColorBlue, "  DOCKER_COMPOSE_FILE - Path to the docker-compose file")
-	Logger(ColorBlue, "  TIMEOUT - Timeout for the service start (optional), default is 60 seconds")
+	Logger(ColorBlue, "  TIMEOUT - Timeout for the service start (optional), default is 5 minutes")
 	Logger(ColorBlue, "  DOCKER_SERVER_IP - IP address of the Docker server")
 	Logger(ColorBlue, "  FORCE - Force restart of containers (optional), default false")
 	if required {
