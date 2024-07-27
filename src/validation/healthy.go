@@ -31,7 +31,10 @@ func validatePodsStatus(ctx context.Context, name string, containerID string) er
 	healthCheckCmd.Stderr = os.Stderr
 
 	if err := healthCheckCmd.Run(); err != nil {
-		return fmt.Errorf("error checking health status for container %s (%s): %s", name, shortContainerID, err)
+		fmt.Printf(utils.ColorRed+"Error checking health status for container %s (%s)\n"+utils.ColorReset, name, shortContainerID)
+		fmt.Printf(utils.ColorYellow + "Note: It is always a good idea to use container health check " +
+			"configuration to monitor container health properly. See more in: https://docs.docker.com/reference/dockerfile/#healthcheck" + utils.ColorReset + "\n")
+		return checkPosIsRunning(ctx, name, shortContainerID, containerID)
 	}
 
 	healthCheckConfig := strings.TrimSpace(healthCheckOut.String())
@@ -78,7 +81,7 @@ func checkPosIsHealthy(checkCtx context.Context, name string, containerID string
 			default:
 				return fmt.Errorf("unknown health status for container %s (%s): %s", name, shortContainerID, healthStatus)
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
@@ -115,7 +118,7 @@ func checkPosIsRunning(checkCtx context.Context, name string, shortContainerID s
 			default:
 				return fmt.Errorf("unknown status for container %s (%s): %s", name, shortContainerID, status)
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
