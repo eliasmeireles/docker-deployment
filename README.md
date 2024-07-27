@@ -50,7 +50,7 @@ There is shell script that can help you to configure the docker remote server.
 
 ```shell
 curl -fsSL "https://raw.githubusercontent.com/eliasmeireles/docker-deployment/main/docker-remote" -o docker-remote
-chrmo +x docker-remote
+chmod +x docker-remote
 ./docker-remote
 ```
 
