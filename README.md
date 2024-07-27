@@ -49,7 +49,7 @@ There is shell script that can help you to configure the docker remote server.
 - Be careful where to run this script.
 
 ```shell
-./docker-remote
+curl -fsSL "https://raw.githubusercontent.com/eliasmeireles/docker-deployment/main/docker-remote" | sh
 ```
 
 ### Environment Variables

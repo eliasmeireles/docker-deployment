@@ -2,14 +2,20 @@
 
 echo "Installing Docker on $(hostname)..."
 
-sudo apt-get update && sudo apt-get install -y \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    net-tools
+# Ask user if they want to install Docker
+read -p "Do you want to install Docker? (y/n): " install_docker
+if [[ "$install_docker" == "y" || "$install_docker" == "Y" ]]; then
+    echo "Installing Docker..."
 
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+    sudo apt-get update && sudo apt-get install -y \
+        apt-transport-https \
+        ca-certificates
+
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+else
+    echo "Docker installation skipped."
+fi
 
 # Paths to TLS certificates and key
 CERT_DIR="/etc/docker/certs.d"
@@ -18,68 +24,104 @@ SERVER_KEY="${CERT_DIR}/key.pem"
 CA_CERT="${CERT_DIR}/ca.pem"
 CA_KEY="${CERT_DIR}/ca-key.pem"
 
-# Create the certificates directory if it doesn't exist
-sudo mkdir -p "${CERT_DIR}"
+generateCerts() {
+  # Create the certificates directory if it doesn't exist
+  sudo mkdir -p "${CERT_DIR}"
 
-# Generate certificates and keys
-echo "Generating certificates and keys..."
+  # Generate certificates and keys
+  echo "Generating certificates and keys..."
 
-# Generate the CA certificate and key if they don't exist
-if [ ! -f "${CA_CERT}" ] || [ ! -f "${CA_KEY}" ]; then
-    echo 'Generating CA certificate and key...'
-    sudo openssl genrsa -out "${CA_KEY}" 4096
-    sudo openssl req -x509 -new -nodes -key "${CA_KEY}" -sha256 -days 3650 -out "${CA_CERT}" -subj '/CN=docker-server'
+  # Generate the CA certificate and key if they don't exist
+  if [ ! -f "${CA_CERT}" ] || [ ! -f "${CA_KEY}" ]; then
+      echo 'Generating CA certificate and key...'
+      sudo openssl genrsa -out "${CA_KEY}" 4096
+      sudo openssl req -x509 -new -nodes -key "${CA_KEY}" -sha256 -days 3650 -out "${CA_CERT}" -subj '/CN=docker-server'
+  fi
+
+  # Generate the server certificate and key if they don't exist
+  if [ ! -f "${SERVER_CERT}" ] || [ ! -f "${SERVER_KEY}" ]; then
+      echo 'Generating server certificate and key...'
+      sudo openssl genrsa -out "${SERVER_KEY}" 4096
+
+      # Create a configuration file for the CSR with SANs
+      echo "[ req ]
+  default_bits       = 4096
+  distinguished_name = req_distinguished_name
+  req_extensions     = req_ext
+  [ req_distinguished_name ]
+  countryName                = Country Name (2 letter code)
+  countryName_default        = US
+  stateOrProvinceName        = State or Province Name (full name)
+  stateOrProvinceName_default = CA
+  localityName               = Locality Name (eg, city)
+  localityName_default       = San Francisco
+  organizationName           = Organization Name (eg, company)
+  organizationName_default   = Docker
+  commonName                 = Common Name (e.g. server FQDN or YOUR name)
+  commonName_default         = docker-server
+  [ req_ext ]
+  subjectAltName = @alt_names
+  [ alt_names ]
+  DNS.1 = docker-server
+  IP.1 = 127.0.0.1
+  IP.2 = $(hostname -I | awk '{print $1}')" | sudo tee ${CERT_DIR}/server-csr.cnf
+
+      sudo openssl req -new -key "${SERVER_KEY}" -out "${CERT_DIR}/server.csr" -config ${CERT_DIR}/server-csr.cnf
+      sudo openssl x509 -req -in "${CERT_DIR}/server.csr" -CA "${CA_CERT}" -CAkey "${CA_KEY}" -CAcreateserial -out "${SERVER_CERT}" -days 3650 -sha256 -extensions req_ext -extfile ${CERT_DIR}/server-csr.cnf
+      sudo rm "${CERT_DIR}/server.csr"
+  fi
+
+  # Configure Docker on docker-server
+  echo "Configuring Docker on docker-server..."
+
+  # Create Docker daemon configuration file
+  echo '{
+    "hosts": ["tcp://0.0.0.0:2376", "unix:///var/run/docker.sock"],
+    "tlsverify": true,
+    "tlscacert": "/etc/docker/certs.d/ca.pem",
+    "tlscert": "/etc/docker/certs.d/cert.pem",
+    "tlskey": "/etc/docker/certs.d/key.pem"
+  }' | sudo tee /etc/docker/daemon.json
+
+  # Modify the Docker service file to use TLS
+  sudo sed -i 's|-H fd://||' /lib/systemd/system/docker.service
+  sudo sed -i 's|-H unix:///var/run/docker.sock|-H unix:///var/run/docker.sock -H tcp://0.0.0.0:2376 --tlsverify --tlscacert=/etc/docker/certs.d/ca.pem --tlscert=/etc/docker/certs.d/cert.pem --tlskey=/etc/docker/certs.d/key.pem|' /lib/systemd/system/docker.service
+  sudo systemctl daemon-reload
+  sudo systemctl restart docker
+
+  echo "Docker installation and configuration complete."
+}
+
+encryptCerts() {
+  # Request the tar file name and password
+  read -p "Enter the name of the tar file (e.g., certs.tar.gz): " archive_name
+  read -s -p "Enter a password for encryption: " password
+  echo
+
+  # Create the tar file
+  tar -czvf "${archive_name}" -C "${CERT_DIR}" ca.pem cert.pem key.pem ca-key.pem
+
+  # Encrypt the tar file
+  openssl enc -aes-256-cbc -salt -pbkdf2 -in "${archive_name}" -out "${archive_name}.enc" -pass pass:"${password}"
+
+  # Remove the unencrypted tar file
+  rm "${archive_name}"
+
+  echo "Certificates have been zipped and encrypted."
+}
+
+# Ask if the user wants to zip and encrypt the generated certificates
+read -p "Do you want to zip and encrypt the generated certificates? (y/n): " cerst_entry
+if [[ "$cerst_entry" == "y" || "$cerst_entry" == "Y" ]]; then
+   generateCerts
+   else
+     echo "Generate certs skipped."
 fi
 
-# Generate the server certificate and key if they don't exist
-if [ ! -f "${SERVER_CERT}" ] || [ ! -f "${SERVER_KEY}" ]; then
-    echo 'Generating server certificate and key...'
-    sudo openssl genrsa -out "${SERVER_KEY}" 4096
-
-    # Create a configuration file for the CSR with SANs
-    echo "[ req ]
-default_bits       = 4096
-distinguished_name = req_distinguished_name
-req_extensions     = req_ext
-[ req_distinguished_name ]
-countryName                = Country Name (2 letter code)
-countryName_default        = US
-stateOrProvinceName        = State or Province Name (full name)
-stateOrProvinceName_default = CA
-localityName               = Locality Name (eg, city)
-localityName_default       = San Francisco
-organizationName           = Organization Name (eg, company)
-organizationName_default   = Docker
-commonName                 = Common Name (e.g. server FQDN or YOUR name)
-commonName_default         = docker-server
-[ req_ext ]
-subjectAltName = @alt_names
-[ alt_names ]
-DNS.1 = docker-server
-IP.1 = 127.0.0.1
-IP.2 = $(hostname -I | awk '{print $1}')" | sudo tee ${CERT_DIR}/server-csr.cnf
-
-    sudo openssl req -new -key "${SERVER_KEY}" -out "${CERT_DIR}/server.csr" -config ${CERT_DIR}/server-csr.cnf
-    sudo openssl x509 -req -in "${CERT_DIR}/server.csr" -CA "${CA_CERT}" -CAkey "${CA_KEY}" -CAcreateserial -out "${SERVER_CERT}" -days 3650 -sha256 -extensions req_ext -extfile ${CERT_DIR}/server-csr.cnf
-    sudo rm "${CERT_DIR}/server.csr"
+# Ask if the user wants to zip and encrypt the generated certificates
+read -p "Do you want to zip and encrypt the generated certificates? (y/n): " zip_encrypt
+if [[ "$zip_encrypt" == "y" || "$zip_encrypt" == "Y" ]]; then
+   encryptCerts
+   else
+    echo "Zipping certs skipped."
 fi
-
-# Configure Docker on docker-server
-echo "Configuring Docker on docker-server..."
-
-# Create Docker daemon configuration file
-echo '{
-  "hosts": ["tcp://0.0.0.0:2376", "unix:///var/run/docker.sock"],
-  "tlsverify": true,
-  "tlscacert": "/etc/docker/certs.d/ca.pem",
-  "tlscert": "/etc/docker/certs.d/cert.pem",
-  "tlskey": "/etc/docker/certs.d/key.pem"
-}' | sudo tee /etc/docker/daemon.json
-
-# Modify the Docker service file to use TLS
-sudo sed -i 's|-H fd://||' /lib/systemd/system/docker.service
-sudo sed -i 's|-H unix:///var/run/docker.sock|-H unix:///var/run/docker.sock -H tcp://0.0.0.0:2376 --tlsverify --tlscacert=/etc/docker/certs.d/ca.pem --tlscert=/etc/docker/certs.d/cert.pem --tlskey=/etc/docker/certs.d/key.pem|' /lib/systemd/system/docker.service
-sudo systemctl daemon-reload
-sudo systemctl restart docker
-
-echo "Docker installation and configuration complete."
