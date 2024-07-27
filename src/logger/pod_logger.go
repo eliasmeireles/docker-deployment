@@ -13,9 +13,7 @@ import (
 func GetPodLogs(ctx context.Context, dockerComposeFile string) error {
 	time.Sleep(2 * time.Second)
 	cmd := exec.Command("docker-compose", "-f", dockerComposeFile, "logs", "-f")
-	fmt.Printf("%sGetting %s logs%s\n", utils.ColorBlue, dockerComposeFile, utils.ColorReset)
-
-	fmt.Printf("Starting pipe logs\n")
+	utils.Logger(utils.ColorBlue, "Getting %s logs%s", dockerComposeFile)
 
 	// Create a pipe to capture the command output
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -30,13 +28,12 @@ func GetPodLogs(ctx context.Context, dockerComposeFile string) error {
 
 	// Read and print logs from stdout in a goroutine
 	go func() {
-		fmt.Printf("Starting scaner logs\n")
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
-			fmt.Println(scanner.Text())
+			utils.Logger("", scanner.Text())
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Printf("Error reading logs: %s\n", err)
+			utils.Logger(utils.ColorRed, "Error reading logs: %s", err)
 		}
 	}()
 
@@ -45,7 +42,7 @@ func GetPodLogs(ctx context.Context, dockerComposeFile string) error {
 	case <-ctx.Done():
 		// Context is done, cancel logs retrieval
 		if err := cmd.Process.Kill(); err != nil {
-			fmt.Printf("Failed to kill logs process: %s\n", err)
+			utils.Logger(utils.ColorRed, "Failed to kill logs process: %s", err)
 		}
 		return ctx.Err()
 	case err := <-waitCmd(cmd):
@@ -64,11 +61,11 @@ func waitCmd(cmd *exec.Cmd) <-chan error {
 }
 
 func LogDockerComposeContent(dockerComposeFile string) error {
-	fmt.Printf(utils.ColorBlue+"Logging content of docker-compose file: %s"+utils.ColorReset+"\n", dockerComposeFile)
+	utils.Logger(utils.ColorBlue, "Logging content of docker-compose file: %s", dockerComposeFile)
 	file, err := os.ReadFile(dockerComposeFile)
 	if err != nil {
 		return err
 	}
-	fmt.Println(utils.ColorBlue + string(file) + utils.ColorReset)
+	utils.Logger(utils.ColorBlue, string(file))
 	return nil
 }

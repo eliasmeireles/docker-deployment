@@ -18,7 +18,7 @@ func UpdateHostsFile(dockerServerIP string) error {
 
 		// Check if the entry already exists
 		if strings.Contains(string(file), entry) {
-			fmt.Println(ColorYellow + "Entry already exists in /etc/hosts." + ColorReset)
+			Logger(ColorYellow, "Entry already exists in /etc/hosts.")
 			return nil
 		}
 
@@ -31,15 +31,15 @@ func UpdateHostsFile(dockerServerIP string) error {
 		defer func(f *os.File) {
 			err := f.Close()
 			if err != nil {
-				fmt.Printf(ColorRed+"Error closing /etc/hosts: %s"+ColorReset+"\n", err)
+				Logger(ColorRed, "Error closing /etc/hosts: %s", err)
 			}
 		}(f)
 
 		if _, err := f.WriteString(entry); err != nil {
-			fmt.Printf(ColorRed+"Error updating /etc/hosts: %s"+ColorReset+"\n", err)
+			Logger(ColorRed, "Error updating /etc/hosts: %s", err)
 		}
 
-		fmt.Println(ColorGreen + "Added entry to /etc/hosts." + ColorReset)
+		Logger(ColorGreen, "Added entry to /etc/hosts.")
 	}
 
 	return nil

@@ -5,7 +5,6 @@ import (
 	"docker-deployment/src/logger"
 	"docker-deployment/src/utils"
 	"docker-deployment/src/validation"
-	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
@@ -20,8 +19,8 @@ func Start(timeoutStr string, dockerComposeFile string, force bool) {
 		var err error
 		timeoutSeconds, err := parseTimeoutToSeconds(timeoutStr)
 		if err != nil {
-			fmt.Printf(utils.ColorRed+"Invalid TIMEOUT format: %s"+utils.ColorReset+"\n", err)
-			timeout = time.Duration(3000) * time.Second
+			utils.Logger(utils.ColorRed, "Invalid TIMEOUT format: %s", err)
+			timeout = utils.DefaultTimeout
 		} else {
 			timeout = time.Duration(timeoutSeconds+60) * time.Second
 		}
@@ -30,7 +29,7 @@ func Start(timeoutStr string, dockerComposeFile string, force bool) {
 	// Log docker-compose file content
 	err := logger.LogDockerComposeContent(dockerComposeFile)
 	if err != nil {
-		fmt.Printf(utils.ColorRed+"Error logging docker-compose content: %s"+utils.ColorReset+"\n", err)
+		utils.Logger(utils.ColorRed, "Error logging docker-compose content: %s", err)
 		os.Exit(1)
 	}
 
@@ -43,10 +42,10 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 	if force {
 		cmdArgs = append(cmdArgs, "--force-recreate")
 	}
-	fmt.Println(utils.ColorBlue + "Starting docker-compose..." + utils.ColorReset)
+	utils.Logger(utils.ColorBlue, "Starting docker-compose...")
 	cmd := exec.Command("docker-compose", cmdArgs...)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		fmt.Printf(utils.ColorRed+"Error running docker-compose: %s"+utils.ColorReset+"\n", string(output))
+		utils.Logger(utils.ColorRed, "Error running docker-compose: %s", string(output))
 		if retry && force {
 			removeOldContainer(string(output))
 			composeRun(dockerComposeFile, force, timeout, false)
@@ -58,7 +57,7 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 	// Get containers
 	containerMap, err := GetContainers(dockerComposeFile)
 	if err != nil {
-		fmt.Printf(utils.ColorRed+"Error getting containers: %s"+utils.ColorReset+"\n", err)
+		utils.Logger(utils.ColorRed, "Error getting containers: %s", err)
 		os.Exit(1)
 	}
 
@@ -79,7 +78,7 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 	go func() {
 		err := logger.GetPodLogs(ctx, dockerComposeFile)
 		if err != nil {
-			fmt.Printf(utils.ColorRed+"Logs retrieval error: %s"+utils.ColorReset+"\n", err)
+			utils.Logger(utils.ColorRed, "Logs retrieval error: %s", err)
 		}
 		close(logsDone)
 	}()
@@ -95,14 +94,14 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 	case err := <-healthCheckDone:
 		// Health check completed
 		if err != nil {
-			fmt.Printf(utils.ColorRed+"Health check error: %s"+utils.ColorReset+"\n", err)
+			utils.Logger(utils.ColorRed, "Health check error: %s", err)
 			cancel()   // Cancel logs retrieval
 			<-logsDone // Ensure logs retrieval completes
 			os.Exit(1)
 		}
 
 	}
-	fmt.Printf(utils.ColorGreen+"Deploy for %s completed successfully\n"+utils.ColorReset, dockerComposeFile)
+	utils.Logger(utils.ColorGreen, "Deploy for %s completed successfully", dockerComposeFile)
 }
 
 func removeOldContainer(output string) {
@@ -119,24 +118,24 @@ func removeOldContainer(output string) {
 
 			shortId := utils.GetShortId(containerID)
 
-			fmt.Printf(utils.ColorYellow+"Trying to remove container: [%s] with id [%s]"+utils.ColorReset+"\n",
+			utils.Logger(utils.ColorYellow, "Trying to remove container: [%s] with id [%s]",
 				containerName, shortId)
 
 			// Remove the container
 			removeCmd := exec.Command("docker", "rm", "-f", containerID)
 			if removeErr := removeCmd.Run(); removeErr != nil {
-				fmt.Printf(utils.ColorRed+"Failed to remove container %s: %s"+utils.ColorReset+"\n", shortId, removeErr)
+				utils.Logger(utils.ColorRed, "Failed to remove container %s: %s", shortId, removeErr)
 				os.Exit(1)
 			}
 
-			fmt.Printf(utils.ColorYellow+"Container [%s] with id [%s] removed successful"+utils.ColorReset+"\n",
+			utils.Logger(utils.ColorYellow, "Container [%s] with id [%s] removed successful",
 				containerName, shortId)
 		} else {
-			fmt.Printf(utils.ColorRed+"Failed to parse error message: %s"+utils.ColorReset+"\n", output)
+			utils.Logger(utils.ColorRed, "Failed to parse error message: %s", output)
 			os.Exit(1)
 		}
 	} else {
-		fmt.Printf(utils.ColorRed + "Failed to remove old container." + utils.ColorReset + "\n")
+		utils.Logger(utils.ColorRed, "Failed to remove old container.")
 		os.Exit(1)
 	}
 }

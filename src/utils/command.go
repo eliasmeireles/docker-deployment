@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 )
@@ -13,7 +12,7 @@ func RunCommand(ctx context.Context, name string, arg ...string) *exec.Cmd {
 	command.Stderr = os.Stderr
 	err := command.Run()
 	if err != nil {
-		fmt.Println(ColorGreen + "Failed to run command." + ColorReset)
+		Logger(ColorGreen, "Failed to run command.")
 	}
 	return command
 }

@@ -32,9 +32,7 @@ func validatePodsStatus(ctx context.Context, timeout time.Duration, name string,
 	healthCheckCmd.Stderr = os.Stderr
 
 	if err := healthCheckCmd.Run(); err != nil {
-		fmt.Printf(utils.ColorRed+"Error checking health status for container %s (%s)\n"+utils.ColorReset, name, shortContainerID)
-		fmt.Printf(utils.ColorYellow + "Note: It is always a good idea to use container health check " +
-			"configuration to monitor container health properly. See more in: https://docs.docker.com/reference/dockerfile/#healthcheck" + utils.ColorReset + "\n")
+		utils.Logger(utils.ColorRed, "Error checking health status for container %s (%s)", name, shortContainerID)
 		return checkPosIsRunning(ctx, timeout, name, shortContainerID, containerID)
 	}
 
@@ -53,7 +51,7 @@ func checkPosIsHealthy(checkCtx context.Context, name string, containerID string
 	ctx, cancel := context.WithTimeout(checkCtx, utils.DefaultTimeout)
 	defer cancel()
 
-	fmt.Printf(utils.ColorBlue+"Checking is healthy for container %s (%s)..."+utils.ColorReset+"\n", name, shortContainerID)
+	utils.Logger(utils.ColorBlue, "Checking is healthy for container %s (%s)...", name, shortContainerID)
 	for {
 		select {
 		case <-ctx.Done():
@@ -69,11 +67,11 @@ func checkPosIsHealthy(checkCtx context.Context, name string, containerID string
 			}
 
 			healthStatus := strings.TrimSpace(out.String())
-			fmt.Printf(utils.ColorYellow+"Container %s (%s) health status: %s"+utils.ColorReset+"\n", name, shortContainerID, healthStatus)
+			utils.Logger(utils.ColorYellow, "Container %s (%s) health status: %s", name, shortContainerID, healthStatus)
 
 			switch healthStatus {
 			case "healthy":
-				fmt.Printf(utils.ColorGreen+"Container %s (%s) is healthy."+utils.ColorReset+"\n", name, shortContainerID)
+				utils.Logger(utils.ColorGreen+"Container %s (%s) is healthy.", name, shortContainerID)
 				return nil
 			case "unhealthy":
 				return fmt.Errorf("container %s (%s) is unhealthy", name, shortContainerID)
@@ -92,7 +90,7 @@ func checkPosIsRunning(checkCtx context.Context, timeout time.Duration, name str
 	ctx, cancel := context.WithTimeout(checkCtx, utils.DefaultTimeout)
 	defer cancel()
 
-	fmt.Printf(utils.ColorBlue+"Checking running status for container %s (%s)..."+utils.ColorReset+"\n", name, shortContainerID)
+	utils.Logger(utils.ColorBlue, "Checking running status for container %s (%s)...", name, shortContainerID)
 	for {
 		select {
 		case <-ctx.Done():
@@ -108,12 +106,14 @@ func checkPosIsRunning(checkCtx context.Context, timeout time.Duration, name str
 			}
 
 			status := strings.TrimSpace(out.String())
-			fmt.Printf(utils.ColorYellow+"Container %s (%s) status: %s"+utils.ColorReset+"\n", name, shortContainerID, status)
+			utils.Logger(utils.ColorYellow, "Container %s (%s) status: %s", name, shortContainerID, status)
 
 			switch status {
 			case "running":
 				time.Sleep(timeout)
-				fmt.Printf(utils.ColorGreen+"Container %s (%s) is running."+utils.ColorReset+"\n", name, shortContainerID)
+				utils.Logger(utils.ColorYellow, "Note: It is always a good idea to use container health check "+
+					"configuration to monitor container health properly. See more in: https://docs.docker.com/reference/dockerfile/#healthcheck")
+				utils.Logger(utils.ColorGreen, "Container %s (%s) is running.", name, shortContainerID)
 				return nil
 			case "created", "restarting":
 				// Continue the loop to keep checking

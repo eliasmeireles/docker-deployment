@@ -1,0 +1,26 @@
+version: '3.7'
+
+services:
+  oauth-api:
+    image: oauth-api-oauth-api:latest
+    container_name: oauth-api
+    restart: always
+    
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "0.5G"
+    #    healthcheck:
+    #      test: ["CMD", "curl", "-f", "http://172.17.0.1:9998/api/oauth/v1/health"]
+    #      interval: 30s
+    #      timeout: 15s
+    #      retries: 5
+    #      start_period: 35s
+    ports:
+      - "127.0.0.1:9998:8080"
+      - "172.17.0.1:9998:8080"
+    volumes:
+      - "/opt/logs/:/opt/logs"
+    
+

@@ -41,7 +41,7 @@ func GetContainers(dockerComposeFile string) (map[string]string, error) {
 		// Strip leading '/' from container name
 		name = strings.TrimPrefix(name, "/")
 		containerMap[name] = containerID
-		fmt.Printf(utils.ColorGreen+"Container %s (%s) started."+utils.ColorReset+"\n", name, shortContainerID)
+		utils.Logger(utils.ColorGreen, "Container %s (%s) started.", name, shortContainerID)
 	}
 
 	return containerMap, nil
