@@ -31,11 +31,14 @@ generateCerts() {
   # Generate certificates and keys
   echo "Generating certificates and keys..."
 
+  # Prompt user for Common Name
+  read -p "Enter the Common Name (CN) for the server certificate; example: (docker-server): " common_name
+
   # Generate the CA certificate and key if they don't exist
   if [ ! -f "${CA_CERT}" ] || [ ! -f "${CA_KEY}" ]; then
       echo 'Generating CA certificate and key...'
       sudo openssl genrsa -out "${CA_KEY}" 4096
-      sudo openssl req -x509 -new -nodes -key "${CA_KEY}" -sha256 -days 3650 -out "${CA_CERT}" -subj '/CN=docker-server'
+      sudo openssl req -x509 -new -nodes -key "${CA_KEY}" -sha256 -days 3650 -out "${CA_CERT}" -subj "/CN=$common_name"
   fi
 
   # Generate the server certificate and key if they don't exist
@@ -58,11 +61,11 @@ generateCerts() {
   organizationName           = Organization Name (eg, company)
   organizationName_default   = Docker
   commonName                 = Common Name (e.g. server FQDN or YOUR name)
-  commonName_default         = docker-server
+  commonName_default         = ${common_name}
   [ req_ext ]
   subjectAltName = @alt_names
   [ alt_names ]
-  DNS.1 = docker-server
+  DNS.1 = ${common_name}
   IP.1 = 127.0.0.1
   IP.2 = $(hostname -I | awk '{print $1}')" | sudo tee ${CERT_DIR}/server-csr.cnf
 
@@ -110,18 +113,18 @@ encryptCerts() {
   echo "Certificates have been zipped and encrypted."
 }
 
-# Ask if the user wants to zip and encrypt the generated certificates
-read -p "Do you want generated or replace current certs? (y/n): " cerst_entry
-if [[ "$cerst_entry" == "y" || "$cerst_entry" == "Y" ]]; then
+# Ask if the user wants to generate or replace current certs
+read -p "Do you want to generate or replace current certs? (y/n): " cert_entry
+if [[ "$cert_entry" == "y" || "$cert_entry" == "Y" ]]; then
    generateCerts
-   else
-     echo "Generate certs skipped."
+else
+   echo "Generate certs skipped."
 fi
 
 # Ask if the user wants to zip and encrypt the generated certificates
 read -p "Do you want to zip and encrypt the generated certificates? (y/n): " zip_encrypt
 if [[ "$zip_encrypt" == "y" || "$zip_encrypt" == "Y" ]]; then
    encryptCerts
-   else
-    echo "Zipping certs skipped."
+else
+   echo "Zipping certs skipped."
 fi
