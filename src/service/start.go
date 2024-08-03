@@ -5,6 +5,9 @@ import (
 	"docker-deployment/src/logger"
 	"docker-deployment/src/utils"
 	"docker-deployment/src/validation"
+	"fmt"
+	"github.com/google/uuid"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -37,8 +40,26 @@ func Start(timeoutStr string, dockerComposeFile string, force bool) {
 }
 
 func composeRun(dockerComposeFile string, force bool, timeout time.Duration, retry bool) {
+	// Generate a UUID and create the path with it
+	tempSource := uuid.New().String()
+	tempPath := fmt.Sprintf("/_temp/%s/docker-compose.yaml", tempSource)
+
+	// Create the destination directory if it does not exist
+	err := os.MkdirAll(fmt.Sprintf("/_temp/%s", tempSource), os.ModePerm)
+	if err != nil {
+		utils.Logger(utils.ColorRed, "Error creating directory: %s", err)
+		os.Exit(1)
+	}
+
+	// Copy the docker-compose file to the destination path
+	err = copyFile(dockerComposeFile, tempPath)
+	if err != nil {
+		utils.Logger(utils.ColorRed, "Error copying docker-compose file: %s", err)
+		os.Exit(1)
+	}
+
 	// Prepare docker-compose command with optional --force-recreate
-	cmdArgs := []string{"-f", dockerComposeFile, "up", "-d"}
+	cmdArgs := []string{"-f", tempPath, "up", "-d"}
 	if force {
 		cmdArgs = append(cmdArgs, "--force-recreate")
 	}
@@ -48,14 +69,14 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 		utils.Logger(utils.ColorRed, "Error running docker-compose: %s", string(output))
 		if retry && force {
 			removeOldContainer(string(output))
-			composeRun(dockerComposeFile, force, timeout, false)
+			composeRun(tempPath, force, timeout, false)
 			return
 		}
 		os.Exit(1)
 	}
 
 	// Get containers
-	containerMap, err := GetContainers(dockerComposeFile)
+	containerMap, err := GetContainers(tempPath)
 	if err != nil {
 		utils.Logger(utils.ColorRed, "Error getting containers: %s", err)
 		os.Exit(1)
@@ -98,8 +119,48 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 			<-logsDone // Ensure logs retrieval completes
 			os.Exit(1)
 		}
-
 	}
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src string, dst string) error {
+	sourceFileStat, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	if !sourceFileStat.Mode().IsRegular() {
+		return fmt.Errorf("source file is not a regular file")
+	}
+
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func(source *os.File) {
+		err := source.Close()
+		if err != nil {
+
+		}
+	}(source)
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer func(destination *os.File) {
+		err := destination.Close()
+		if err != nil {
+
+		}
+	}(destination)
+
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func removeOldContainer(output string) {

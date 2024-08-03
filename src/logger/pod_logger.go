@@ -13,7 +13,7 @@ import (
 func GetPodLogs(ctx context.Context, dockerComposeFile string) error {
 	time.Sleep(2 * time.Second)
 	cmd := exec.Command("docker-compose", "-f", dockerComposeFile, "logs", "-f")
-	utils.Logger(utils.ColorBlue, "Getting %s logs%s", dockerComposeFile)
+	utils.Logger(utils.ColorBlue, "Getting %s logs", dockerComposeFile)
 
 	// Create a pipe to capture the command output
 	stdoutPipe, err := cmd.StdoutPipe()

@@ -5,6 +5,7 @@ go 1.22.5
 require (
 	github.com/docker/docker v27.0.3+incompatible
 	github.com/docker/go-connections v0.5.0
+	github.com/google/uuid v1.6.0
 )
 
 require (
