@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Function to install Go for a specific architecture
+install_go() {
+    local version="$1"
+    local arch="$2"
+    local os="$3"
+    local url="https://golang.org/dl/go${version}.${os}-${arch}.tar.gz"
+    local tar_file="go${version}.${os}-${arch}.tar.gz"
+    local install_dir="/usr/local"
+
+    echo "Downloading Go ${version} for ${os} ${arch}..."
+    curl -sL "${url}" -o "${tar_file}"
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to download Go binary."
+        exit 1
+    fi
+
+    echo "Removing previous Go installation..."
+    sudo rm -rf "${install_dir}/go"
+
+    echo "Installing Go ${version}..."
+    sudo tar -C "${install_dir}" -xzf "${tar_file}"
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to install Go."
+        exit 1
+    fi
+
+    echo "Go installation completed. Version: "
+    /usr/local/go/bin/go version
+
+    # Cleanup
+    rm "${tar_file}"
+}
+
+# Check if version argument is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <go-version>"
+    exit 1
+fi
+
+GO_VERSION="$1"
+
+# Detect operating system and architecture
+OS=$(uname -s)
+ARCH=$(uname -m)
+
+# Convert OS to lowercase
+OS=$(echo "$OS" | tr '[:upper:]' '[:lower:]')
+
+echo "Info: ${OS}/${ARCH}"
+
+case "${OS}" in
+    linux)
+        case "${ARCH}" in
+            x86_64) ARCH="amd64" ;;
+            aarch64) ARCH="arm64" ;;
+            armv7l) ARCH="armv6l" ;;
+            *)
+                echo "Unsupported architecture: ${ARCH}"
+                exit 1
+                ;;
+        esac
+        ;;
+    darwin)
+        case "${ARCH}" in
+            x86_64) ARCH="amd64" ;;
+            arm64) ARCH="arm64" ;;
+            *)
+                echo "Unsupported architecture: ${ARCH}"
+                exit 1
+                ;;
+        esac
+        ;;
+    *)
+        echo "Unsupported operating system: ${OS}"
+        exit 1
+        ;;
+esac
+
+install_go "${GO_VERSION}" "${ARCH}" "${OS}"

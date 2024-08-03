@@ -113,9 +113,9 @@ The script handles errors at each step and exits with an appropriate error messa
 Here's an example of setting the environment variables and running the script:
 
 ```sh
-export DOCKER_COMPOSE_FILE=./docker-compose.yml
+export DOCKER_COMPOSE_FILE=./example/docker-compose.yml
 export TIMEOUT=60
-export DOCKER_SERVER_IP=192.168.99.100
+export DOCKER_SERVER_IP=192.168.205.25
 export FORCE=true
 
 go run main.go
