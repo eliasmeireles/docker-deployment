@@ -11,7 +11,12 @@ import (
 	"time"
 )
 
-func ValidateHealthCheck(ctx context.Context, timeout time.Duration, containers map[string]string) error {
+func ValidateHealthCheck(
+	ctx context.Context,
+	timeout time.Duration,
+	containers map[string]string,
+	dockerComposeFile string,
+) error {
 	time.Sleep(10 * time.Second)
 	for name, containerID := range containers {
 		err := validatePodsStatus(ctx, timeout, name, containerID)
@@ -19,6 +24,8 @@ func ValidateHealthCheck(ctx context.Context, timeout time.Duration, containers 
 			return err
 		}
 	}
+
+	utils.Logger(utils.ColorGreen, "Deploy for %s completed successfully", dockerComposeFile)
 	return nil
 }
 

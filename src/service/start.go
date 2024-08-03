@@ -67,27 +67,26 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 
 	// Channels for health check and logs
 	healthCheckDone := make(chan error, 1)
-	logsDone := make(chan struct{})
+	logsDone := make(chan error, 1)
 
 	// Run health check in a goroutine
 	go func() {
-		healthCheckDone <- validation.ValidateHealthCheck(ctx, timeout, containerMap)
+		healthCheckDone <- validation.ValidateHealthCheck(ctx, timeout, containerMap, dockerComposeFile)
 	}()
 
 	// Run logs retrieval in a goroutine
 	go func() {
-		err := logger.GetPodLogs(ctx, dockerComposeFile)
-		if err != nil {
-			utils.Logger(utils.ColorRed, "Logs retrieval error: %s", err)
-		}
-		close(logsDone)
+		logsDone <- logger.GetPodLogs(ctx, dockerComposeFile)
 	}()
 
 	// Wait for either health check or logs retrieval to complete
 	select {
-	case <-logsDone:
+	case err := <-logsDone:
 		// Logs retrieval completed
 		// No need to do anything, health check might still be running
+		if err != nil {
+			utils.Logger(utils.ColorRed, "Logs retrieval error: %s", err)
+		}
 		cancel()          // Cancel health check
 		<-healthCheckDone // Ensure health check completes
 
@@ -101,7 +100,6 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 		}
 
 	}
-	utils.Logger(utils.ColorGreen, "Deploy for %s completed successfully", dockerComposeFile)
 }
 
 func removeOldContainer(output string) {
