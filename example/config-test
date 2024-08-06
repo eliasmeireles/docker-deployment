@@ -37,6 +37,7 @@ multipass exec docker-server -- sudo tar -czf - -C /etc/docker/certs.d ca.pem ce
 # Copy Docker certificates from local temporary directory to docker-connector
 echo "Copying Docker certificates to docker-connector..."
 multipass copy-files -r "$TEMP_DIR" docker-connector:/home/ubuntu/certs.d
+multipass copy-files ../go-installer docker-server:/home/ubuntu/go-installer
 
 # Move Docker certificates to the correct directory on docker-connector
 echo "Moving Docker certificates to /etc/docker/certs.d on docker-connector..."
@@ -51,6 +52,7 @@ multipass transfer setup docker-connector:/home/ubuntu/
 multipass transfer docker-compose.yml docker-connector:/home/ubuntu/docker-compose.yml
 multipass transfer Makefile docker-connector:/home/ubuntu/Makefile
 multipass exec docker-connector -- bash /home/ubuntu/setup
+multipass exec docker-connector -- bash /home/ubuntu/go-installer
 
 # Create Docker environment configuration file on docker-connector
 echo "Creating Docker environment configuration file on docker-connector..."

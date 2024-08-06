@@ -1,6 +1,9 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func Logger(color string, message any, args ...any) {
 	var formattedString string
@@ -13,5 +16,21 @@ func Logger(color string, message any, args ...any) {
 		formattedString = fmt.Sprintf("%v", message)
 	}
 
-	fmt.Printf(ColorReset+"[%s%s%s] - %s%s\n", ColorYellow, CurrentTimeFormatted(), ColorReset, color, formattedString)
+	// Split the formatted string by newlines
+	lines := strings.Split(formattedString, "\n")
+
+	// Print each line with the timestamp and color
+	for _, line := range lines {
+		if line != "" { // Avoid printing empty lines
+			fmt.Printf(
+				"%s[%s%s%s] - %s%s\n",
+				ColorReset,
+				ColorYellow,
+				CurrentTimeFormatted(),
+				ColorReset,
+				color,
+				line,
+			)
+		}
+	}
 }

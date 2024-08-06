@@ -37,6 +37,4 @@ echo "docker-server=$DOCKER_SERVER_IP"
 
 ls -lah /etc/docker/certs.d
 
-env
-
 /usr/bin/deployment

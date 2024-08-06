@@ -40,6 +40,8 @@ func Start(timeoutStr string, dockerComposeFile string, force bool) {
 }
 
 func composeRun(dockerComposeFile string, force bool, timeout time.Duration, retry bool) {
+	_ = Prune()
+
 	// Generate a UUID and create the path with it
 	tempSource := uuid.New().String()
 	tempPath := fmt.Sprintf("/_temp/%s/docker-compose.yaml", tempSource)
@@ -55,6 +57,11 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 	err = copyFile(dockerComposeFile, tempPath)
 	if err != nil {
 		utils.Logger(utils.ColorRed, "Error copying docker-compose file: %s", err)
+		os.Exit(1)
+	}
+
+	err = Pull(tempPath)
+	if err != nil {
 		os.Exit(1)
 	}
 
@@ -112,11 +119,12 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 		<-healthCheckDone // Ensure health check completes
 
 	case err := <-healthCheckDone:
+		_ = Prune()
 		// Health check completed
 		if err != nil {
 			utils.Logger(utils.ColorRed, "Health check error: %s", err)
-			cancel()   // Cancel logs retrieval
-			<-logsDone // Ensure logs retrieval completes
+			cancel()
+			<-logsDone
 			os.Exit(1)
 		}
 	}

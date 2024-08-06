@@ -34,6 +34,10 @@ local-build:
 	go build -o deployment main.go
 	chmod +x  deployment
 
+test:
+	make local-build
+	sudo DOCKER_COMPOSE_FILE=./example/docker-compose.yml FORCE=true TIMEOUT=300 ./deployment
+
 container-run:
 	 docker run --rm -it \
 	   --name docker-deployment \
