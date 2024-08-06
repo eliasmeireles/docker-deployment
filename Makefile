@@ -31,12 +31,12 @@ push:
 all: build
 
 local-build:
-	go build -o deployment main.go
-	chmod +x  deployment
+	go build -o docker-deployment main.go
+	chmod +x  docker-deployment
 
 test:
 	make local-build
-	sudo DOCKER_COMPOSE_FILE=./example/docker-compose.yml FORCE=true TIMEOUT=300 ./deployment
+	DOCKER_COMPOSE_FILE=./example/docker-compose.yml FORCE=true TIMEOUT=300 ./docker-deployment
 
 container-run:
 	 docker run --rm -it \

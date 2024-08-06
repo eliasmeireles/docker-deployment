@@ -14,7 +14,7 @@ deploy-refs
 .settings
 .springBeans
 .sts4-cache
-
+*_temp
 ### IntelliJ IDEA ###
 .idea
 *.iws

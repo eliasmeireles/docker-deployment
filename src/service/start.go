@@ -44,10 +44,10 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 
 	// Generate a UUID and create the path with it
 	tempSource := uuid.New().String()
-	tempPath := fmt.Sprintf("/_temp/%s/docker-compose.yaml", tempSource)
+	tempPath := fmt.Sprintf("_temp/%s/docker-compose.yaml", tempSource)
 
 	// Create the destination directory if it does not exist
-	err := os.MkdirAll(fmt.Sprintf("/_temp/%s", tempSource), os.ModePerm)
+	err := os.MkdirAll(fmt.Sprintf("_temp/%s", tempSource), os.ModePerm)
 	if err != nil {
 		utils.Logger(utils.ColorRed, "Error creating directory: %s", err)
 		os.Exit(1)
