@@ -1,5 +1,12 @@
 #!/bin/bash
 
+set -e
+
+# Check if the entry already exists
+grep -q "$DOCKER_SERVER_IP docker-server" /etc/hosts || {
+  echo "$DOCKER_SERVER_IP docker-server" | tee -a /etc/hosts
+}
+
 # Check if environment variables are set
 if [ -z "$DOCKER_REGISTRY_HOST" ]; then
   echo "Error: DOCKER_REGISTRY_HOST is not set."
@@ -24,12 +31,6 @@ if [ $? -ne 0 ]; then
   echo "Error: Docker login failed."
   exit 1
 fi
-
-# Check if the entry already exists
-grep -q "$DOCKER_SERVER_IP docker-server" /etc/hosts || {
-  # If it doesn't exist, add it
-  echo "$DOCKER_SERVER_IP docker-server" | sudo tee -a /etc/hosts
-}
 
 echo "Docker login successful."
 
