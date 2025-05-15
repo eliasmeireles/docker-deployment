@@ -36,10 +36,10 @@ func Start(timeoutStr string, dockerComposeFile string, force bool) {
 		os.Exit(1)
 	}
 
-	composeRun(dockerComposeFile, force, timeout, true)
+	composeRun(dockerComposeFile, force, timeout, 0)
 }
 
-func composeRun(dockerComposeFile string, force bool, timeout time.Duration, retry bool) {
+func composeRun(dockerComposeFile string, force bool, timeout time.Duration, counter int) {
 	_ = Prune()
 
 	// Generate a UUID and create the path with it
@@ -59,10 +59,17 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 		utils.Logger(utils.ColorRed, "Error copying docker-compose file: %s", err)
 		os.Exit(1)
 	}
+	//
+	//err = Pull(tempPath)
+	//if err != nil {
+	//	os.Exit(1)
+	//}
 
-	err = Pull(tempPath)
+	// Load services
+	services, err := loadServicesFromFile(tempPath)
 	if err != nil {
-		os.Exit(1)
+		fmt.Printf("Error loading services: %s\n", err)
+		return
 	}
 
 	// Prepare docker-compose command with optional --force-recreate
@@ -72,11 +79,14 @@ func composeRun(dockerComposeFile string, force bool, timeout time.Duration, ret
 	}
 	utils.Logger(utils.ColorBlue, "Starting docker-compose...")
 	cmd := exec.Command("docker-compose", cmdArgs...)
-	if output, err := cmd.CombinedOutput(); err != nil {
+
+	var output []byte
+
+	if output, err = cmd.CombinedOutput(); err != nil {
 		utils.Logger(utils.ColorRed, "Error running docker-compose: %s", string(output))
-		if retry && force {
+		if counter < len(services.Services) && force {
 			removeOldContainer(string(output))
-			composeRun(tempPath, force, timeout, false)
+			composeRun(tempPath, force, timeout, counter+1)
 			return
 		}
 		os.Exit(1)

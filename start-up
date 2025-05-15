@@ -1,0 +1,8 @@
+#!/bin/bash
+
+echo "$DOCKER_REMOTE_IP_ADDRESS $DOCKER_REMOTE_HOSTNAME" | tee -a /etc/hosts
+
+echo "Running /usr/local/bin/entrypoint. If you want to run a different command, simply pass it as an argument to docker run."
+
+/bin/bash "/usr/local/bin/entrypoint"
+

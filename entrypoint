@@ -2,40 +2,6 @@
 
 set -e
 
-# Check if the entry already exists
-grep -q "$DOCKER_SERVER_IP docker-server" /etc/hosts || {
-  echo "$DOCKER_SERVER_IP docker-server" | tee -a /etc/hosts
-}
-
-# Check if environment variables are set
-if [ -z "$DOCKER_REGISTRY_HOST" ]; then
-  echo "Error: DOCKER_REGISTRY_HOST is not set."
-  exit 1
-fi
-
-if [ -z "$DOCKER_REGISTRY_USERNAME" ]; then
-  echo "Error: DOCKER_REGISTRY_USERNAME is not set."
-  exit 1
-fi
-
-if [ -z "$DOCKER_REGISTRY_PASSWORD" ]; then
-  echo "Error: DOCKER_REGISTRY_PASSWORD is not set."
-  exit 1
-fi
-
-# Attempt to log in to Docker registry
-echo "$DOCKER_REGISTRY_PASSWORD" | docker login "$DOCKER_REGISTRY_HOST" -u "$DOCKER_REGISTRY_USERNAME" --password-stdin
-
-# Check if the login was successful
-if [ $? -ne 0 ]; then
-  echo "Error: Docker login failed."
-  exit 1
-fi
-
-echo "Docker login successful."
-
-echo "docker-server=$DOCKER_SERVER_IP"
-
-ls -lah /etc/docker/certs.d
+docker ps
 
 /usr/bin/deployment
